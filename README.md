@@ -1,12 +1,15 @@
-# EduMirror Educational Simulation Project (Based on Concordia)
+# EduMirror Educational Simulation Project
 
-## Repository Structure and Roles
+This repository hosts the **EduMirror Benchmark**, a comprehensive dataset and simulation suite for studying social and behavioral dynamics in educational contexts. Built on the Concordia multi-agent framework, EduMirror is designed for the academic community to benchmark, analyze, and reproduce complex social phenomena. The dataset is generated from a collection of theory-grounded simulation scenarios, each producing detailed interaction logs and quantitative measurements of agent behavior and internal states. This benchmark provides a standardized environment for evaluating computational models of social science theories.
+
+## Repository Structure
 ```
 EduMirror_Project/
 ├── EduMirror/
 │   ├── common/
 │   │   ├── agent/
-│   │   │   ├── adapters/
+│   │   │   ├── Individual_Value_Agent/
+│   │   │   ├── Social_Value_Agent/
 │   │   │   └── agent_factory.py
 │   │   ├── measurement/
 │   │   │   ├── questionnaire/
@@ -58,12 +61,12 @@ EduMirror_Project/
     - Model selection and API wiring occur in `EduMirror/common/simulation_utils/model_setup.py`
   - Local backends (no cloud keys): use `Ollama` or `pytorch_gemma` (see `concordia-git/language_model/` and examples)
 - Run a scenario (example)
-  - `python EduMirror/scenarios/the_cheating_dilemma/main.py`
-  - See “Running and Outputs” for result files
+  - Run the family economic pressure social decision scenario from the scenario project root:
+  `python scenarios/family_econ_pressure_social_decision/main.py`
 
 ## EduMirror Features Overview
 - Shared core (`EduMirror/common/`)
-  - `agent/agent_factory.py`: unified agent creation factory; `adapters/` for Concordia observation compatibility and SVO tracking
+  - `agent/`: provides a modularized agent creation architecture. It includes a general `agent_factory.py` for basic agent creation, and specialized value-based agent modules such as `Individual_Value_Agent/` and `Social_Value_Agent/`.
   - `measurement/`:
     - `questionnaire/`: validated psychometric scales modules (e.g., `rses.py`, `incom.py`, `spin.py`) for in-situ survey measurement
     - `rubrics/`: behavioral rating rubrics for post-hoc coding
@@ -77,39 +80,6 @@ EduMirror_Project/
   - Independent topics implemented as modules with `agents.py` and `main.py`
   - Results written to `results/<scenario_name>/run_<timestamp>/condition_<name>/`
   - See “Scenario Overview and Structure” for the full list and structure
-
-## Dual-Track Measurement: Rater & Surveyor
-- Concept
-  - Two complementary tracks capture behavior and internal states.
-  - Post-hoc coding (Rater) quantifies observable actions; in-situ surveys (Surveyor) measure internal states during the interaction.
-
-- Surveyor overview (`EduMirror/common/measurement/surveyor.py`)
-  - Component: `EduMirrorSurveyor` (EduMirror/common/measurement/surveyor.py:15).
-  - Role: orchestrates validated questionnaires for specified players, drives question delivery via Concordia’s `GMQuestionnaire`, records answers, and returns aggregated results.
-  - Key functions:
-    - `run_once(responder)` (EduMirror/common/measurement/surveyor.py:29): emits action specs, invokes `responder(player, action_spec_str)`, logs putative events, returns a results `DataFrame`.
-    - `save_results(results_df, output_dir, filename_prefix)` (EduMirror/common/measurement/surveyor.py:53): writes `*_answers.json` and `*_results.{csv,json}`.
-    - `reset()`, `get_answers()`, `get_results()`: lifecycle management and data access.
-
-- Rater overview (`EduMirror/common/measurement/rater.py`)
-  - Structures: `RubricItem`, `Rubric` (EduMirror/common/measurement/rater.py:11, :20).
-  - Component: `EduMirrorRater(model)` (EduMirror/common/measurement/rater.py:29).
-  - Role: transforms JSONL transcripts into quantitative rubrics-based measurements using keyword criteria and scoring maps.
-  - Key functions:
-    - `load_transcript(path)` (EduMirror/common/measurement/rater.py:33): reads JSONL event lines.
-    - `analyze_transcript(transcript, rubric)` (EduMirror/common/measurement/rater.py:49): extracts agent, matches criteria, maps to scores/severity, returns `DataFrame`.
-    - `apply_rubrics(transcript, rubrics)` (EduMirror/common/measurement/rater.py:118): batch analysis across rubrics.
-    - `save_results(df, output_dir, filename_prefix)` (EduMirror/common/measurement/rater.py:111): writes results to CSV/JSON.
-
-- Available questionnaires (`EduMirror/common/measurement/questionnaire/`)
-  - Includes widely used scales such as `rses.py` (Rosenberg Self-Esteem), `incom.py` (Iowa–Netherlands Comparison), `spin.py` (Social Phobia Inventory), plus `bfne.py`, `dass21.py`, `erq.py`, `panas_c.py`, `panas_x.py`, `stai.py`, `sci2.py`, `scs.py`, `gse.py`, `imi.py`, `pacs.py`, `pjs.py`, `fsps.py`, `fqs.py`, `ucla8.py`, `yms.py`, `bpns_g.py`, `bpnsfs_autonomy.py`, `pss10.py`, `pssm_short.py`, `lsdq.py`, `mvs_short.py`, `geds.py`, `gms.py`, `gossip_scale.py`, `perceived_safety.py`, `sasa.py`, `rsq.py`, `sobi_ps.py`, `srasr.py`, `cas.py`, `ces.py`, `cses_public.py`, `ams.py`.
-
-- Available rubrics (`EduMirror/common/measurement/rubrics/`)
-  - Includes `cooperation_competition.py`, `collaboration_quality.py`, `communication_styles.py`, `conformity_level.py`, `peer_social_acceptance.py`, `peer_resistance.py`, `identity_autonomy.py`, `intergroup_contact_quality.py`, `parental_involvement.py`, `parental_aggression.py`, `romantic_rejection_behavior.py`, `school_avoidance.py`, `smart_goal_quality.py`, `social_initiation.py`, `academic_dishonesty.py`, `materialism_behaviors.py`, `materialism_consumption.py`, `bullying_bystander.py`, `bystander_intervention.py`, `exclusionary_behavior.py`, `iep_collaboration.py`, `restorative_vs_punitive_rubric.py`.
-
-- Notes
-  - Surveyor produces structured, participant-linked survey results mid-simulation; Rater encodes behavior from final transcripts post-simulation.
-  - Results are saved under `results/<scenario_name>/run_<timestamp>/condition_<name>/` with separate files for events and measurements, enabling reproducible analysis.
 
 ## Simulation Utilities Overview
 - `checkpoint_manager.py`
@@ -189,47 +159,90 @@ EduMirror_Project/
   - Post-Hoc Rater: quantitative coding of interaction logs
   - In-Situ Surveyor: structured surveys during the scenario to capture internal states
 
-## AgentFactory: Available Agents and Usage
+## Agent Module: Available Agents and Usage
 - Overview
-  - Unified API for creating agents with consistent architecture.
+  - The agent module provides a unified API for creating agents with a consistent architecture, located in `EduMirror/common/agent/`.
+  - It is composed of a central `AgentFactory` and specialized value-based agent builders.
+
+- AgentFactory (`agent_factory.py`)
   - Location: `EduMirror/common/agent/agent_factory.py:38` (class `AgentFactory`).
-  - Inputs: a language model instance and a sentence embedder function returning `numpy.ndarray`.
+  - Responsibilities:
+    - Creates base agents using a `basic_with_plan` prefab and an associative memory bank populated with formative memories.
+    - Provides built-in builders for core personas (`create_student`, `create_teacher`, `create_parent`, `create_custom_agent`).
+    - Registers and manages external builders for more complex, value-driven agents.
 
-- Responsibilities
-  - Create base agents using a `basic_with_plan` prefab and an associative memory bank populated with formative memories.
-  - Maintain optional external builders registry for value-oriented agents.
-
-- Built-in builders (core personas)
-  - `create_student(name, goal, traits, formative_memories)` (`EduMirror/common/agent/agent_factory.py:254`)
-  - `create_teacher(name, goal, traits, formative_memories, subject_area)` (`EduMirror/common/agent/agent_factory.py:288`)
-  - `create_parent(name, goal, traits, formative_memories, child_name)` (`EduMirror/common/agent/agent_factory.py:325`)
-  - `create_custom_agent(name, goal, traits, formative_memories, role_description)` (`EduMirror/common/agent/agent_factory.py:362`)
-
-- External value-agent builders (optional)
-  - `register_external_builders()` (`EduMirror/common/agent/agent_factory.py:67`) enables:
-    - `create_value_agent_psych(...)` (`EduMirror/common/agent/agent_factory.py:165`): value-driven agent with psychological profiles and `selected_desires`, `predefined_setting`, `context_dict`.
-    - `create_value_agent_social(...)` (`EduMirror/common/agent/agent_factory.py:206`): social-personality agent with `social_personality`, `stored_target_folder`, `agent_names`, `current_time`.
+- Value-Agent Builders (External)
+  - The factory can be extended with specialized builders that create agents with explicit value systems.
+  - `Individual_Value_Agent`: Constructs agents driven by individual psychological profiles and internal value states.
+  - `Social_Value_Agent`: Constructs agents whose decisions are influenced by social-personality traits and interpersonal dynamics (e.g., Social Value Orientation).
 
 - Outputs
-  - All builders return `EntityAgentWithLogging` with a configured memory bank.
-  - Formative memories influence retrieval and reasoning via `basic_associative_memory`.
+  - All builders return an `EntityAgentWithLogging` instance with a configured memory bank.
+  - Formative memories and value components influence agent reasoning and behavior via the `basic_associative_memory`.
 
 - Integration notes
-  - Ensure `concordia-git/` is importable (editable install or `PYTHONPATH`).
-  - Agents are designed to plug into `SceneBuilder` and `InterventionScenarioRunner` pipelines for simulation orchestration.
+  - Ensure `concordia-git/` is importable (via editable install or `PYTHONPATH`).
+  - Agents are designed to be seamlessly integrated into `SceneBuilder` and `InterventionScenarioRunner` pipelines for simulation orchestration.
 
-## Running and Outputs
-- Purpose: standardized, reproducible outputs per run and per intervention condition.
-- Path layout: `results/<scenario_name>/run_<timestamp>/condition_<name>/`.
-- Key files:
-  - `simulation_events.jsonl`: normalized event log (step, scene, participants, event).
-  - `measurements.json`: aggregated dual-track results (rater + surveyor).
-- Analysis: compare condition folders to evaluate intervention effects.
-- Generation: JSONL logs are written during branch execution (see `EduMirror/common/simulation_utils/intervention_runner.py:147-149`).
+## Dual-Track Measurement: Rater & Surveyor
+- Concept
+  - Two complementary tracks capture behavior and internal states.
+  - Post-hoc coding (Rater) quantifies observable actions; in-situ surveys (Surveyor) measure internal states during the interaction.
+
+- Surveyor overview (`EduMirror/common/measurement/surveyor.py`)
+  - Component: `EduMirrorSurveyor` (EduMirror/common/measurement/surveyor.py:15).
+  - Role: orchestrates validated questionnaires for specified players, drives question delivery via Concordia’s `GMQuestionnaire`, records answers, and returns aggregated results.
+  - Key functions:
+    - `run_once(responder)` (EduMirror/common/measurement/surveyor.py:29): emits action specs, invokes `responder(player, action_spec_str)`, logs putative events, returns a results `DataFrame`.
+    - `save_results(results_df, output_dir, filename_prefix)` (EduMirror/common/measurement/surveyor.py:53): writes `*_answers.json` and `*_results.{csv,json}`.
+    - `reset()`, `get_answers()`, `get_results()`: lifecycle management and data access.
+
+- Rater overview (`EduMirror/common/measurement/rater.py`)
+  - Structures: `RubricItem`, `Rubric` (EduMirror/common/measurement/rater.py:11, :20).
+  - Component: `EduMirrorRater(model)` (EduMirror/common/measurement/rater.py:29).
+  - Role: transforms JSONL transcripts into quantitative rubrics-based measurements using keyword criteria and scoring maps.
+  - Key functions:
+    - `load_transcript(path)` (EduMirror/common/measurement/rater.py:33): reads JSONL event lines.
+    - `analyze_transcript(transcript, rubric)` (EduMirror/common/measurement/rater.py:49): extracts agent, matches criteria, maps to scores/severity, returns `DataFrame`.
+    - `apply_rubrics(transcript, rubrics)` (EduMirror/common/measurement/rater.py:118): batch analysis across rubrics.
+    - `save_results(df, output_dir, filename_prefix)` (EduMirror/common/measurement/rater.py:111): writes results to CSV/JSON.
+
+- Available questionnaires (`EduMirror/common/measurement/questionnaire/`)
+  - Includes widely used scales such as `rses.py` (Rosenberg Self-Esteem), `incom.py` (Iowa–Netherlands Comparison), `spin.py` (Social Phobia Inventory), plus `bfne.py`, `dass21.py`, `erq.py`, `panas_c.py`, `panas_x.py`, `stai.py`, `sci2.py`, `scs.py`, `gse.py`, `imi.py`, `pacs.py`, `pjs.py`, `fsps.py`, `fqs.py`, `ucla8.py`, `yms.py`, `bpns_g.py`, `bpnsfs_autonomy.py`, `pss10.py`, `pssm_short.py`, `lsdq.py`, `mvs_short.py`, `geds.py`, `gms.py`, `gossip_scale.py`, `perceived_safety.py`, `sasa.py`, `rsq.py`, `sobi_ps.py`, `srasr.py`, `cas.py`, `ces.py`, `cses_public.py`, `ams.py`.
+
+- Available rubrics (`EduMirror/common/measurement/rubrics/`)
+  - Includes `cooperation_competition.py`, `collaboration_quality.py`, `communication_styles.py`, `conformity_level.py`, `peer_social_acceptance.py`, `peer_resistance.py`, `identity_autonomy.py`, `intergroup_contact_quality.py`, `parental_involvement.py`, `parental_aggression.py`, `romantic_rejection_behavior.py`, `school_avoidance.py`, `smart_goal_quality.py`, `social_initiation.py`, `academic_dishonesty.py`, `materialism_behaviors.py`, `materialism_consumption.py`, `bullying_bystander.py`, `bystander_intervention.py`, `exclusionary_behavior.py`, `iep_collaboration.py`, `restorative_vs_punitive_rubric.py`.
+
+- Notes
+  - Surveyor produces structured, participant-linked survey results mid-simulation; Rater encodes behavior from final transcripts post-simulation.
+  - Results are saved under `results/<scenario_name>/run_<timestamp>/condition_<name>/` with separate files for events and measurements, enabling reproducible analysis.
 
 ## Scenario Overview and Structure
 - Overview: each scenario is an independent module that defines roles, interventions, measurement, and outputs.
 - Topics include (see `EduMirror/scenarios/` for complete list): bystander effects, social comparison, parent–teacher communication, bullying, academic integrity, social pressure, romantic rejection, student integration, and more.
+
+| Scenario Name | Description | Agent Roles | Agent Count | Grounding Theory |
+| :--- | :--- | :--- | :--- | :--- |
+| Social Comparison and Materialistic | Investigates how high social comparison tendency adolescents adjust self-worth and behavior strategies under material gap stimulation; evaluates the effectiveness of teacher-led interventions. | Student, Parent, Teacher | 5 | Social Comparison Theory, Materialism Theory |
+| The Bullying Circle | Simulates bystander intervention in school bullying to explore how personality traits and social situations influence intervention decisions, and tests educational interventions. | Student | 4 | Bystander Effect, Theory of Planned Behavior |
+| Celebrity Worship And Identity Formation | Investigates the impact of celebrity worship on adolescent identity formation, exploring both positive and negative effects. | Student | 3 | Identity Status Theory, Parasocial Interaction Theory |
+| Collaborative Iep Meeting | Simulates the collaboration process between parents and teachers in developing an Individualized Education Program (IEP) for a student with special needs. | Teacher, Parent | 2 | Bronfenbrenner's Ecological Systems Theory |
+| Enforcing Discipline Policy | Simulates a teacher's choice between restorative and punitive approaches when dealing with student misconduct, exploring the impact on student behavior and teacher-student relationships. | Teacher, Student | 3 | Restorative Justice Theory, Operant Conditioning |
+| Family Econ Pressure Social Decision | Simulates the impact of high parental academic pressure on adolescent mental health and academic burnout, and tests interventions to alleviate pressure. | Student, Parent | 3 | Self-Determination Theory |
+| Friendship Formation And Dissolution | Simulates the dynamics of friendship formation and dissolution among adolescents, exploring factors like similarity, proximity, and conflict resolution. | Student | 4 | Social Penetration Theory, Equity Theory |
+| Helicopter Parent And Teacher Autonomy | Simulates conflicts between parents and adolescents over autonomy and rule-setting, and tests the effectiveness of collaborative problem-solving interventions. | Parent, Student | 3 | Attachment Theory, Self-Determination Theory |
+| Materialism Consumption Decision | Simulates how different goal-setting strategies (e.g., performance vs. mastery goals) affect student motivation, persistence, and academic outcomes. | Student, Teacher | 3 | Goal-Setting Theory, Achievement Goal Theory |
+| Navigating Discrimination | Simulates the formation of in-group favoritism and out-group prejudice in a school setting, and tests interventions based on the contact hypothesis. | Student | 6 | Social Identity Theory, Realistic Conflict Theory |
+| Navigating Romantic Interests And Rejection | Simulates the experience of romantic rejection among adolescents, exploring its impact on emotions and self-esteem, and the effectiveness of different coping strategies. | Student | 2 | Need-to-Belong Theory, Cognitive Appraisal Theory |
+| Organizing School Event | Simulates cooperation and conflict dynamics in a student group project, exploring how personality traits and communication strategies affect team performance and relationships. | Student | 4 | Social Interdependence Theory |
+| Parent-teacher Conflict Over Grades And Effort | Simulates miscommunication between a teacher and a parent regarding a student's academic performance, testing interventions to improve communication effectiveness. | Teacher, Parent | 2 | Attribution Theory, Communication Accommodation Theory |
+| Parental Influence On Students Extracurricular Choices | Simulates how parental expectations and support influence adolescents' career exploration and decision-making processes. | Parent, Student | 3 | Social Cognitive Career Theory|
+| Peer Pressure And Conformity | Simulates how peer pressure influences adolescents' conformity behavior in risk-taking situations, and evaluates the effectiveness of resistance skills training. | Student | 4 | Social Impact Theory, Normative Social Influence |
+| Sociometric Status | Simulates the impact of social media use on adolescent body image and self-esteem, and evaluates media literacy education interventions. | Student | 3 | Objectification Theory, Social Comparison Theory |
+| The Cheating Dilemma | Simulates academic integrity challenges to explore the factors influencing students' decisions to cheat and the effectiveness of integrity education interventions. | Student, Teacher | 4 | Theory of Planned Behavior, Social Cognitive Theory |
+| The Path To School Refusal | Simulates social anxiety and avoidance behaviors in adolescents, exploring the impact on social functioning and the effectiveness of cognitive-behavioral interventions. | Student | 3 | Cognitive Model of Social Anxiety|
+| The Spread Of Gossip | Investigates the impact of gossip on adolescent social networks, self-esteem, and trust, and evaluates interventions to mitigate negative effects. | Student | 4 | Social Identity Theory, Uncertainty Reduction Theory |
+| Transfer Student Integration | Simulates the social integration process of a transfer student, exploring how peer attitudes and school climate affect their sense of belonging and academic adaptation. | Student | 4 | Social Identity Theory, Contact Hypothesis |
 
 - Scenario directory structure (example): `EduMirror/scenarios/<scenario_name>/`
   - Required files:
@@ -241,6 +254,15 @@ EduMirror_Project/
   - `simulation_events.jsonl`: process log
   - `measurements.json`: quantitative measurement results (rater + surveyor)
 
+## Running and Outputs
+- Purpose: standardized, reproducible outputs per run and per intervention condition.
+- Path layout: `results/<scenario_name>/run_<timestamp>/condition_<name>/`.
+- Key files:
+  - `simulation_events.jsonl`: normalized event log (step, scene, participants, event).
+  - `measurements.json`: aggregated dual-track results (rater + surveyor).
+- Analysis: compare condition folders to evaluate intervention effects.
+- Generation: JSONL logs are written during branch execution (see `EduMirror/common/simulation_utils/intervention_runner.py:147-149`).
+
 ## FAQ and Troubleshooting
 - `import concordia` fails
   - In `concordia-git/` run `python -m pip install -e .`, or set `PYTHONPATH` to `concordia-git`
@@ -248,12 +270,3 @@ EduMirror_Project/
   - Use a local backend (e.g., `Ollama`), or select `no_language_model`
 - Dependency conflicts or environment issues
   - Clean the environment and reinstall; check `PYTHONPATH` and model backend settings
-
-## Citation and License
-- Cite the Concordia framework (add official repository link and license info)
-- Project citation format (for papers and replication)
-- License statement consistent with anonymous open-source; do not include any secrets or keys
-
-## Example Scenario Run
-- Run the family economic pressure social decision scenario from the scenario project root:
-  `python scenarios/family_econ_pressure_social_decision/main.py`

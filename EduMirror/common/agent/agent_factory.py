@@ -16,9 +16,9 @@
 
 import sys
 import os
-import importlib
+import importlib.util
 import types
-from typing import List, Callable, Any, Optional, Dict, Mapping
+from typing import List, Callable, Any, Optional, Dict
 import numpy as np
 
 # Add concordia path to sys.path
@@ -32,7 +32,26 @@ from concordia.clocks import game_clock
 # Import our project's model configuration instead of direct concordia import
 # from concordia.language_model import language_model
 from concordia.prefabs.entity import basic_with_plan
-from concordia.utils import measurements as measurements_lib
+ 
+_base_dir = os.path.dirname(__file__)
+_individual_path = os.path.join(_base_dir, 'Individual_Value_Agent', 'NDA_agent', 'ValueAgent.py')
+_social_path = os.path.join(_base_dir, 'Social Value_Agent', 'ValueAgent.py')
+
+try:
+    _spec_ind = importlib.util.spec_from_file_location('edu_individual_value_agent', _individual_path)
+    _mod_ind = importlib.util.module_from_spec(_spec_ind)
+    _spec_ind.loader.exec_module(_mod_ind)
+    build_individual_value_agent = getattr(_mod_ind, 'build_individual_value_agent')
+except Exception:
+    build_individual_value_agent = None
+
+try:
+    _spec_soc = importlib.util.spec_from_file_location('edu_social_value_agent', _social_path)
+    _mod_soc = importlib.util.module_from_spec(_spec_soc)
+    _spec_soc.loader.exec_module(_mod_soc)
+    build_social_value_agent = getattr(_mod_soc, 'build_social_value_agent')
+except Exception:
+    build_social_value_agent = None
 
 
 class AgentFactory:
@@ -52,7 +71,6 @@ class AgentFactory:
         """
         self._model = model
         self._embedder_model = embedder_model
-        self._value_agent_builders: Dict[str, Callable[..., entity_agent_with_logging.EntityAgentWithLogging]] = {}
     
     def _create_memory_bank(self) -> basic_associative_memory.AssociativeMemoryBank:
         """Create an empty memory bank.
@@ -64,58 +82,7 @@ class AgentFactory:
             sentence_embedder=self._embedder_model
         )
 
-    def register_external_builders(self, base_path: Optional[str] = None) -> None:
-        if base_path is None:
-            project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..'))
-            base_path = os.path.join(project_root, 'agent')
-        if base_path not in sys.path:
-            sys.path.insert(0, base_path)
-        nda_dir = os.path.join(base_path, 'examples', 'NDA')
-        if nda_dir not in sys.path:
-            sys.path.insert(0, nda_dir)
-        d2a_dir = os.path.join(base_path, 'old_version')
-        if d2a_dir not in sys.path:
-            sys.path.insert(0, d2a_dir)
-        try:
-            importlib.import_module('concordia.components.agent.observation')
-        except Exception:
-            obs_adapter = importlib.import_module('common.agent.adapters.concordia_obs_compat')
-            sys.modules['concordia.components.agent.observation'] = obs_adapter
-            agent_pkg = importlib.import_module('concordia.components.agent')
-            setattr(agent_pkg, 'observation', obs_adapter)
-        try:
-            importlib.import_module('concordia.associative_memory.associative_memory')
-        except ImportError:
-            basic_mod = importlib.import_module('concordia.associative_memory.basic_associative_memory')
-            sys.modules['concordia.associative_memory.associative_memory'] = basic_mod
-            pkg = importlib.import_module('concordia.associative_memory')
-            setattr(pkg, 'associative_memory', basic_mod)
-        try:
-            importlib.import_module('concordia.memory_bank.legacy_associative_memory')
-        except ImportError:
-            legacy_mod = importlib.import_module('concordia.deprecated.memory_bank.legacy_associative_memory')
-            sys.modules['concordia.memory_bank.legacy_associative_memory'] = legacy_mod
-            if importlib.util.find_spec('concordia.memory_bank'):
-                mem_pkg = importlib.import_module('concordia.memory_bank')
-            else:
-                mem_pkg = types.ModuleType('concordia.memory_bank')
-                sys.modules['concordia.memory_bank'] = mem_pkg
-            setattr(mem_pkg, 'legacy_associative_memory', legacy_mod)
-        try:
-            importlib.import_module('concordia.components.agent.memory_component')
-        except ImportError:
-            mem_comp_mod = importlib.import_module('concordia.components.agent.deprecated.memory_component')
-            sys.modules['concordia.components.agent.memory_component'] = mem_comp_mod
-            agent_pkg = importlib.import_module('concordia.components.agent')
-            setattr(agent_pkg, 'memory_component', mem_comp_mod)
-        def _nda_builder(**kwargs):
-            mod = importlib.import_module('examples.NDA.NDA_agent.ValueAgent')
-            return getattr(mod, 'build_NDA_agent')(**kwargs)
-        def _d2a_builder(**kwargs):
-            mod = importlib.import_module('old_version.ValueAgent')
-            return getattr(mod, 'build_D2A_agent')(**kwargs)
-        self._value_agent_builders['psych'] = _nda_builder
-        self._value_agent_builders['social'] = _d2a_builder
+    
     
     def _create_base_agent(
         self,
@@ -161,95 +128,7 @@ class AgentFactory:
         
         return agent
 
-    def create_value_agent_psych(
-        self,
-        name: str,
-        profile: str,
-        background_knowledge: str,
-        selected_desires: List[str],
-        predefined_setting: Dict[str, int],
-        context_dict: Dict[str, str],
-        goal: Optional[str] = None,
-        formative_memories_list: Optional[List[str]] = None,
-        clock: Optional[game_clock.MultiIntervalClock] = None,
-        main_character: bool = True,
-        additional_components: Optional[Mapping[str, Any]] = None,
-    ) -> entity_agent_with_logging.EntityAgentWithLogging:
-        if 'psych' not in self._value_agent_builders:
-            raise RuntimeError('Psych builders not registered')
-        memory_bank = self._create_memory_bank()
-        if formative_memories_list:
-            for m in formative_memories_list:
-                memory_bank.add(m)
-        if clock is None:
-            clock = game_clock.MultiIntervalClock(game_clock.GameClockConfig(time_step=game_clock.timedelta(hours=1)))
-        config = formative_memories.AgentConfig(name=name, goal=goal, extras={'main_character': main_character})
-        builder = self._value_agent_builders['psych']
-        measurements = measurements_lib.Measurements()
-        if additional_components is None:
-            additional_components = types.MappingProxyType({})
-        return builder(
-            config=config,
-            context_dict=context_dict,
-            selected_desire=selected_desires,
-            predefined_setting=predefined_setting,
-            model=self._model,
-            profile=profile,
-            memory=memory_bank,
-            background_knowledge=background_knowledge,
-            clock=clock,
-            update_time_interval=game_clock.timedelta(hours=1),
-            additional_components=additional_components,
-        )
-
-    def create_value_agent_social(
-        self,
-        name: str,
-        profile: str,
-        background_knowledge: str,
-        selected_desires: List[str],
-        predefined_setting: Dict[str, int],
-        context_dict: Dict[str, str],
-        social_personality: str,
-        stored_target_folder: str,
-        agent_names: List[str],
-        current_time: str,
-        goal: Optional[str] = None,
-        formative_memories_list: Optional[List[str]] = None,
-        clock: Optional[game_clock.MultiIntervalClock] = None,
-        main_character: bool = True,
-        additional_components: Optional[Mapping[str, Any]] = None,
-    ) -> entity_agent_with_logging.EntityAgentWithLogging:
-        if 'social' not in self._value_agent_builders:
-            raise RuntimeError('Social builders not registered')
-        memory_bank = self._create_memory_bank()
-        if formative_memories_list:
-            for m in formative_memories_list:
-                memory_bank.add(m)
-        if clock is None:
-            clock = game_clock.MultiIntervalClock(game_clock.GameClockConfig(time_step=game_clock.timedelta(hours=1)))
-        config = formative_memories.AgentConfig(name=name, goal=goal, extras={'main_character': main_character})
-        builder = self._value_agent_builders['social']
-        measurements = measurements_lib.Measurements()
-        if additional_components is None:
-            additional_components = types.MappingProxyType({})
-        return builder(
-            config=config,
-            context_dict=context_dict,
-            selected_desire=selected_desires,
-            predefined_setting=predefined_setting,
-            model=self._model,
-            profile=profile,
-            memory=memory_bank,
-            background_knowledge=background_knowledge,
-            clock=clock,
-            update_time_interval=game_clock.timedelta(hours=1),
-            additional_components=additional_components,
-            stored_target_folder=stored_target_folder,
-            social_personality=social_personality,
-            agent_names=agent_names,
-            current_time=current_time,
-        )
+    
     
     def create_student(
         self,
@@ -386,4 +265,102 @@ class AgentFactory:
             goal=goal,
             traits=traits,
             formative_memories_list=formative_memories
+        )
+
+    def create_value_agent_individual(
+        self,
+        name: str,
+        profile: str,
+        background_knowledge: str,
+        selected_desires: List[str],
+        predefined_setting: Dict[str, int],
+        context_dict: Dict[str, str],
+        goal: Optional[str] = None,
+        formative_memories_list: Optional[List[str]] = None,
+        clock: Optional[game_clock.MultiIntervalClock] = None,
+        main_character: bool = True,
+        additional_components: Optional[Dict[str, Any]] = None,
+    ) -> entity_agent_with_logging.EntityAgentWithLogging:
+        if build_individual_value_agent is None:
+            raise RuntimeError('Individual value agent module not available')
+        memory_bank = self._create_memory_bank()
+        if formative_memories_list:
+            for m in formative_memories_list:
+                memory_bank.add(m)
+        if clock is None:
+            clock = game_clock.MultiIntervalClock(
+                game_clock.GameClockConfig(time_step=game_clock.timedelta(hours=1))
+            )
+        config = formative_memories.AgentConfig(
+            name=name,
+            goal=goal,
+            extras={'main_character': main_character},
+        )
+        if additional_components is None:
+            additional_components = types.MappingProxyType({})
+        return build_individual_value_agent(
+            config=config,
+            context_dict=context_dict,
+            selected_desire=selected_desires,
+            predefined_setting=predefined_setting,
+            model=self._model,
+            profile=profile,
+            memory=memory_bank,
+            background_knowledge=background_knowledge,
+            clock=clock,
+            update_time_interval=game_clock.timedelta(hours=1),
+            additional_components=additional_components,
+        )
+
+    def create_value_agent_social(
+        self,
+        name: str,
+        profile: str,
+        background_knowledge: str,
+        selected_desires: List[str],
+        predefined_setting: Dict[str, int],
+        context_dict: Dict[str, str],
+        social_personality: str,
+        stored_target_folder: str,
+        agent_names: List[str],
+        current_time: str,
+        goal: Optional[str] = None,
+        formative_memories_list: Optional[List[str]] = None,
+        clock: Optional[game_clock.MultiIntervalClock] = None,
+        main_character: bool = True,
+        additional_components: Optional[Dict[str, Any]] = None,
+    ) -> entity_agent_with_logging.EntityAgentWithLogging:
+        if build_social_value_agent is None:
+            raise RuntimeError('Social value agent module not available')
+        memory_bank = self._create_memory_bank()
+        if formative_memories_list:
+            for m in formative_memories_list:
+                memory_bank.add(m)
+        if clock is None:
+            clock = game_clock.MultiIntervalClock(
+                game_clock.GameClockConfig(time_step=game_clock.timedelta(hours=1))
+            )
+        config = formative_memories.AgentConfig(
+            name=name,
+            goal=goal,
+            extras={'main_character': main_character},
+        )
+        if additional_components is None:
+            additional_components = types.MappingProxyType({})
+        return build_social_value_agent(
+            config=config,
+            context_dict=context_dict,
+            selected_desire=selected_desires,
+            predefined_setting=predefined_setting,
+            model=self._model,
+            profile=profile,
+            memory=memory_bank,
+            background_knowledge=background_knowledge,
+            clock=clock,
+            update_time_interval=game_clock.timedelta(hours=1),
+            additional_components=additional_components,
+            stored_target_folder=stored_target_folder,
+            social_personality=social_personality,
+            agent_names=agent_names,
+            current_time=current_time,
         )
