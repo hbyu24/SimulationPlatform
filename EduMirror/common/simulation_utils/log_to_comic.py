@@ -140,17 +140,11 @@ class LogToComicGenerator:
 
     def _get_api_key(self) -> str:
         key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
-        if not key:
-            key_file = os.path.join(os.path.dirname(__file__), ".gemini_api_key")
-            if os.path.exists(key_file):
-                with open(key_file, "r", encoding="utf-8") as f:
-                    key = f.read().strip()
-                os.environ["GEMINI_API_KEY"] = key
         return key or ""
 
     def _generate_image_via_rest(self, prompt: str, out_path: str, base_image_path: Optional[str] = None) -> None:
         if not self.api_key:
-            raise RuntimeError("Missing GEMINI_API_KEY")
+            raise RuntimeError("Missing GEMINI_API_KEY or GOOGLE_API_KEY")
         url = "https://generativelanguage.googleapis.com/v1beta/models/{}:generateContent".format(self.image_model_name)
         headers = {
             "Content-Type": "application/json",

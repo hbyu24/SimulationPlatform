@@ -1,36 +1,65 @@
 # EduMirror Educational Simulation Project (Based on Concordia)
 
-## Audience and Purpose
-- Provide a directly runnable guide for reviewers and replicators
-- Cover environment setup, framework installation, running scenes, measurement, and outputs for anonymous open-source replication
-
 ## Repository Structure and Roles
-- Root: repository root
-- Framework: `concordia-git/` (contains the `concordia/` package and `examples/`)
-- Project library: `EduMirror/` (shared core and scenario modules for this research)
+```
+EduMirror_Project/
+├── EduMirror/
+│   ├── common/
+│   │   ├── agent/
+│   │   │   ├── adapters/
+│   │   │   └── agent_factory.py
+│   │   ├── measurement/
+│   │   │   ├── questionnaire/
+│   │   │   ├── rubrics/
+│   │   │   ├── rater.py
+│   │   │   └── surveyor.py
+│   │   └── simulation_utils/
+│   │       ├── checkpoint_manager.py
+│   │       ├── config.py
+│   │       ├── intervention_runner.py
+│   │       ├── log_to_comic.py
+│   │       ├── model_setup.py
+│   │       ├── scene_builder.py
+│   │       └── time_manager.py
+│   └── scenarios/
+│       ├── <scenario_name>/
+│       │   ├── __init__.py
+│       │   ├── agents.py
+│       │   └── main.py
+│       └── ...
+├── concordia-git/
+│   └── concordia/  (framework source; installed via editable mode)
+└── README.md
+```
 
-## Installation and Setup
+## Installation and Quick Start
 - Prerequisites
   - `conda` (Anaconda or Miniconda)
   - Windows 10/11, recommended Python 3.10/3.11
 - Create and activate the virtual environment (`EduMirror`)
   - `conda create -n EduMirror python=3.11 -y`
   - `conda activate EduMirror`
- - Install Concordia (editable manual install from local source)
+- Install Concordia (editable manual install from local source)
   - From repository root: `cd concordia-git`
   - Install: `python -m pip install --editable .[dev]`
   - (Optional) Test: `python -m pytest --pyargs concordia`
   - Return to repository root after installation
-- Language model configuration (as needed)
-  - Cloud: provide API keys via environment variables (e.g., `OPENAI_API_KEY`, `GOOGLE_API_KEY`)
-  - Local: use `Ollama` or other backends; see `concordia-git/language_model/` and `examples/`
-
-## Quick Start
-- Navigate to the repository root
-- Activate the environment: `conda activate EduMirror`
-- Ensure Concordia is importable (Option A or B above)
-- Run any scenario (example): `python EduMirror/scenarios/the_cheating_dilemma/main.py`
-- See the “Running and Outputs” section for result files
+- Language model configuration
+  - Configure via environment variables (recommended)
+    - PowerShell (Windows):
+      - `setx OPENAI_API_KEY "<your-openai-key>"`
+      - `setx GOOGLE_API_KEY "<your-google-key>"`
+      - New shells will inherit the values; for current shell use: `$env:OPENAI_API_KEY="<your-openai-key>"`
+    - Bash (Unix/macOS):
+      - `export OPENAI_API_KEY="<your-openai-key>"`
+      - `export GOOGLE_API_KEY="<your-google-key>"`
+  - Or configure in code (do not commit secrets):
+    - `EduMirror/common/simulation_utils/config.py` supports setting keys (commented placeholders for providers)
+    - Model selection and API wiring occur in `EduMirror/common/simulation_utils/model_setup.py`
+  - Local backends (no cloud keys): use `Ollama` or `pytorch_gemma` (see `concordia-git/language_model/` and examples)
+- Run a scenario (example)
+  - `python EduMirror/scenarios/the_cheating_dilemma/main.py`
+  - See “Running and Outputs” for result files
 
 ## EduMirror Features Overview
 - Shared core (`EduMirror/common/`)

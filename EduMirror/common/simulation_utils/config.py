@@ -1,4 +1,4 @@
-# Copyright 2024 EduSim Project
+# Copyright 2024 EduMirror Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Configuration management for EduSim project.
+"""Configuration management for EduMirror project.
 
 This module provides centralized configuration management for API keys,
 model settings, and other project-wide configurations.
@@ -24,7 +24,7 @@ from typing import Optional, Dict, Any
 # =============================================================================
 # API KEYS CONFIGURATION
 # =============================================================================
-# Configure your API keys here. These will be used across all EduSim scenarios.
+# Configure your API keys here. These will be used across all EduMirror scenarios.
 # You only need to set them once, and all simulations will use these keys.
 
 # OpenAI API Key
@@ -254,13 +254,6 @@ if __name__ == '__main__':
     if not any(status.values()):
         print("  ⚠️  No API keys configured. Please set at least one API key.")
     elif status.get('openai', False):
-        print("  ✅ OpenAI API key configured. Ready to use EduSim!")
+        print("  ✅ OpenAI API key configured.")
     else:
         print("  ℹ️  Consider configuring OpenAI API key for best compatibility.")
-    
-    # Debug: Show actual OpenAI key status
-    openai_key = get_api_key('openai')
-    print(f"\nDebug Info:")
-    print(f"  OpenAI API Key: {'Configured' if openai_key else 'Not found'}")
-    if openai_key:
-        print(f"  Key preview: {openai_key[:10]}...{openai_key[-4:]}")

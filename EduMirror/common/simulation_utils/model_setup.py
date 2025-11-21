@@ -1,4 +1,4 @@
-# Copyright 2024 EduSim Project
+# Copyright 2024 EduMirror Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Utilities for setting up language models and embedders for EduSim scenarios.
+"""Utilities for setting up language models and embedders for EduMirror scenarios.
 
 This module provides standardized functions for creating and configuring
 language models and embedding functions that can be reused across all
